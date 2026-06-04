@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1565C0</color>
+    <color name="primary_dark">#0D47A1</color>
+    <color name="background">#F5F7FA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="divider">#E0E4EA</color>
+
+    <color name="text_primary">#1A1A2E</color>
+    <color name="text_secondary">#6B7280</color>
+
+    <!-- Level 0 - Client: Deep Blue -->
+    <color name="level0_bg">#EEF2FF</color>
+    <color name="level0_accent">#3B4FE0</color>
+
+    <!-- Level 1 - Address: Teal -->
+    <color name="level1_bg">#F0FDFA</color>
+    <color name="level1_accent">#0891B2</color>
+
+    <!-- Level 2 - Object: Amber -->
+    <color name="level2_bg">#FFFBEB</color>
+    <color name="level2_accent">#D97706</color>
+
+    <!-- Level 3 - Node: Green -->
+    <color name="level3_bg">#F0FDF4</color>
+    <color name="level3_accent">#16A34A</color>
+</resources>
