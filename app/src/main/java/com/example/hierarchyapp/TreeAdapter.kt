@@ -1,6 +1,5 @@
 package com.example.hierarchyapp
 
-import android.animation.ObjectAnimator
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,9 +8,9 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 
-class TreeAdapter(
-    private val visibleNodes: MutableList<TreeNode>
-) : RecyclerView.Adapter<TreeAdapter.NodeViewHolder>() {
+class TreeAdapter : RecyclerView.Adapter<TreeAdapter.NodeViewHolder>() {
+
+    private val visibleNodes: MutableList<TreeNode> = mutableListOf()
 
     inner class NodeViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val labelText: TextView = view.findViewById(R.id.tvLabel)
@@ -37,8 +36,9 @@ class TreeAdapter(
         // Indent based on level
         val dp = ctx.resources.displayMetrics.density
         val indentPx = (node.level * 20 * dp).toInt()
-        (holder.indentGuide.layoutParams as ViewGroup.MarginLayoutParams).width = indentPx
-        holder.indentGuide.requestLayout()
+        val lp = holder.indentGuide.layoutParams
+        lp.width = indentPx
+        holder.indentGuide.layoutParams = lp
 
         // Color per level
         val (bgColor, badgeColor) = when (node.level) {
@@ -52,132 +52,127 @@ class TreeAdapter(
             ContextCompat.getColor(ctx, badgeColor)
         )
 
-        // Arrow for expandable nodes
+        // Arrow
         if (node.hasChildren) {
             holder.arrowIcon.visibility = View.VISIBLE
-            val rotation = if (node.isExpanded) 90f else 0f
-            holder.arrowIcon.rotation = rotation
+            holder.arrowIcon.rotation = if (node.isExpanded) 90f else 0f
         } else {
             holder.arrowIcon.visibility = View.INVISIBLE
         }
 
-        // Click to expand/collapse
+        // Click — use adapterPosition captured at click time, not at bind time
         holder.itemView.setOnClickListener {
-            if (node.hasChildren) {
-                toggleNode(node, holder.bindingAdapterPosition)
-                // Animate arrow
-                val targetRotation = if (node.isExpanded) 90f else 0f
-                ObjectAnimator.ofFloat(holder.arrowIcon, "rotation", targetRotation).apply {
-                    duration = 200
-                    start()
-                }
+            val pos = holder.bindingAdapterPosition
+            if (pos == RecyclerView.NO_ID.toInt()) return@setOnClickListener
+            if (pos < 0 || pos >= visibleNodes.size) return@setOnClickListener
+            val clickedNode = visibleNodes[pos]
+            if (!clickedNode.hasChildren) return@setOnClickListener
+            if (clickedNode.isExpanded) {
+                collapseNode(pos)
+            } else {
+                expandNode(pos)
             }
         }
     }
 
     override fun getItemCount() = visibleNodes.size
 
-    private fun toggleNode(node: TreeNode, position: Int) {
-        if (node.isExpanded) {
-            collapseNode(node, position)
-        } else {
-            expandNode(node, position)
-        }
-    }
-
-    private fun expandNode(node: TreeNode, position: Int) {
+    private fun expandNode(position: Int) {
+        val node = visibleNodes[position]
         node.isExpanded = true
-        val insertList = getVisibleDescendants(node)
-        visibleNodes.addAll(position + 1, insertList)
+        val toInsert = flatChildren(node)
+        if (toInsert.isEmpty()) return
+        visibleNodes.addAll(position + 1, toInsert)
         notifyItemChanged(position)
-        notifyItemRangeInserted(position + 1, insertList.size)
+        notifyItemRangeInserted(position + 1, toInsert.size)
     }
 
-    private fun collapseNode(node: TreeNode, position: Int) {
+    private fun collapseNode(position: Int) {
+        val node = visibleNodes[position]
         node.isExpanded = false
-        val removeCount = countVisibleDescendants(node, position)
-        repeat(removeCount) { visibleNodes.removeAt(position + 1) }
-        notifyItemChanged(position)
-        notifyItemRangeRemoved(position + 1, removeCount)
-        // Recursively mark all children as collapsed
-        collapseChildrenState(node)
-    }
-
-    private fun collapseChildrenState(node: TreeNode) {
-        node.children.forEach { child ->
-            child.isExpanded = false
-            collapseChildrenState(child)
+        // Count how many visible items belong to this node's subtree
+        var count = 0
+        var i = position + 1
+        while (i < visibleNodes.size && visibleNodes[i].level > node.level) {
+            count++
+            i++
         }
+        if (count == 0) return
+        repeat(count) { visibleNodes.removeAt(position + 1) }
+        // Mark all descendants as collapsed so re-expanding starts fresh
+        markCollapsed(node)
+        notifyItemChanged(position)
+        notifyItemRangeRemoved(position + 1, count)
     }
 
-    private fun getVisibleDescendants(node: TreeNode): List<TreeNode> {
+    private fun markCollapsed(node: TreeNode) {
+        node.isExpanded = false
+        node.children.forEach { markCollapsed(it) }
+    }
+
+    // Returns direct children only (not grandchildren — they get added on demand)
+    private fun flatChildren(node: TreeNode): List<TreeNode> {
         val list = mutableListOf<TreeNode>()
         node.children.forEach { child ->
             list.add(child)
             if (child.isExpanded) {
-                list.addAll(getVisibleDescendants(child))
+                list.addAll(flatChildren(child))
             }
         }
         return list
     }
 
-    private fun countVisibleDescendants(node: TreeNode, position: Int): Int {
-        var count = 0
-        node.children.forEach { child ->
-            count++
-            if (child.isExpanded) {
-                count += countVisibleDescendants(child, -1)
-            }
-        }
-        return count
-    }
+    // ── Public API ──────────────────────────────────────────────────────────
 
-    fun filter(query: String, allNodes: List<TreeNode>) {
+    fun setRoots(roots: List<TreeNode>) {
         visibleNodes.clear()
-        if (query.isEmpty()) {
-            // Restore default view: top-level expanded
-            allNodes.forEach { node ->
-                visibleNodes.add(node)
-                if (node.isExpanded) {
-                    addExpandedChildren(node)
-                }
-            }
-        } else {
-            // Show all matching nodes with parents expanded
-            val q = query.lowercase()
-            allNodes.forEach { client ->
-                addMatchingNodes(client, q)
-            }
+        roots.forEach { root ->
+            visibleNodes.add(root)
+            if (root.isExpanded) visibleNodes.addAll(flatChildren(root))
         }
         notifyDataSetChanged()
     }
 
-    private fun addExpandedChildren(node: TreeNode) {
-        node.children.forEach { child ->
-            visibleNodes.add(child)
-            if (child.isExpanded) addExpandedChildren(child)
+    fun filter(query: String, allNodes: List<TreeNode>) {
+        visibleNodes.clear()
+        if (query.isBlank()) {
+            allNodes.forEach { root ->
+                visibleNodes.add(root)
+                if (root.isExpanded) visibleNodes.addAll(flatChildren(root))
+            }
+        } else {
+            val q = query.trim().lowercase()
+            allNodes.forEach { root -> collectMatches(root, q) }
         }
+        notifyDataSetChanged()
     }
 
-    private fun addMatchingNodes(node: TreeNode, query: String): Boolean {
-        val selfMatches = node.label.lowercase().contains(query)
-        var anyChildMatches = false
-
-        node.children.forEach { child ->
-            if (addMatchingNodes(child, query)) anyChildMatches = true
-        }
-
-        if (selfMatches || anyChildMatches) {
-            if (!visibleNodes.contains(node)) {
-                visibleNodes.add(node)
-                if (anyChildMatches) {
-                    node.children.forEach { child ->
-                        addMatchingNodes(child, query)
-                    }
-                }
+    private fun collectMatches(node: TreeNode, query: String): Boolean {
+        val selfMatch = node.label.lowercase().contains(query)
+        val childMatches = node.children.map { collectMatches(it, query) }
+        val anyChild = childMatches.any { it }
+        if (selfMatch || anyChild) {
+            visibleNodes.add(node)
+            node.children.forEachIndexed { i, child ->
+                if (childMatches[i]) collectMatches_addVisible(child, query)
             }
             return true
         }
         return false
+    }
+
+    private fun collectMatches_addVisible(node: TreeNode, query: String) {
+        val selfMatch = node.label.lowercase().contains(query)
+        val childMatches = node.children.map { child ->
+            child.label.lowercase().contains(query) ||
+                    child.children.any { it.label.lowercase().contains(query) }
+        }
+        val anyChild = childMatches.any { it }
+        if (selfMatch || anyChild) {
+            visibleNodes.add(node)
+            node.children.forEachIndexed { i, child ->
+                if (childMatches[i]) collectMatches_addVisible(child, query)
+            }
+        }
     }
 }

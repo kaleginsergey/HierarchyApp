@@ -22,19 +22,20 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recyclerView)
         searchInput = findViewById(R.id.searchInput)
 
-        // Build tree from embedded data
         allNodes = DataRepository.buildTree()
 
-        adapter = TreeAdapter(allNodes.toMutableList())
+        adapter = TreeAdapter()
         recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.itemAnimator = null  // отключаем анимацию RecyclerView — она конфликтует с ручным управлением позициями
         recyclerView.adapter = adapter
+
+        adapter.setRoots(allNodes)
 
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                val query = s?.toString()?.trim() ?: ""
-                adapter.filter(query, allNodes)
+                adapter.filter(s?.toString() ?: "", allNodes)
             }
         })
     }
