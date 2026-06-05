@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
 
     <!-- Header -->
     <LinearLayout
+        android:id="@+id/mapHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/level3_accent"
@@ -24,8 +24,7 @@
             android:text="←"
             android:textSize="22sp"
             android:textColor="#FFFFFF"
-            android:gravity="center"
-            android:padding="8dp"/>
+            android:gravity="center"/>
 
         <LinearLayout
             android:layout_width="0dp"
@@ -46,15 +45,81 @@
                 android:layout_height="wrap_content"
                 android:text="Нажмите на маркер для информации"
                 android:textColor="#CCFFFFFF"
-                android:textSize="11sp"
-                android:layout_marginTop="1dp"/>
+                android:textSize="11sp"/>
         </LinearLayout>
     </LinearLayout>
 
-    <WebView
-        android:id="@+id/webView"
+    <!-- Map canvas container (fills below header) -->
+    <FrameLayout
+        android:id="@+id/mapContainer"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"/>
+        android:layout_height="match_parent"
+        android:layout_marginTop="64dp"/>
 
-</LinearLayout>
+    <!-- Popup card (initially hidden) -->
+    <LinearLayout
+        android:id="@+id/mapPopup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/card_background"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:visibility="gone"
+        android:elevation="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="10dp">
+
+            <TextView
+                android:id="@+id/popupTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/level0_accent"/>
+
+            <TextView
+                android:id="@+id/popupClose"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:text="✕"
+                android:textSize="18sp"
+                android:gravity="center"
+                android:textColor="@color/text_secondary"/>
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/divider"
+            android:layout_marginBottom="10dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingBottom="8dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Класс" android:textSize="12sp" android:textColor="@color/text_secondary"/>
+            <TextView android:id="@+id/popupClass" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/text_primary"/>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingBottom="8dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Серийный номер" android:textSize="12sp" android:textColor="@color/text_secondary"/>
+            <TextView android:id="@+id/popupSerial" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/text_primary"/>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingBottom="8dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Расположение" android:textSize="12sp" android:textColor="@color/text_secondary"/>
+            <TextView android:id="@+id/popupLocation" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/text_primary"/>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Лимит потребления" android:textSize="12sp" android:textColor="@color/text_secondary"/>
+            <TextView android:id="@+id/popupLimit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/text_primary"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>
