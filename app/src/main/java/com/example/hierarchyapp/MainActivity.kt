@@ -24,7 +24,12 @@ class MainActivity : AppCompatActivity() {
 
         allNodes = DataRepository.buildTree()
 
-        adapter = TreeAdapter()
+        adapter = TreeAdapter { node ->
+            val intent = android.content.Intent(this, NodeDetailActivity::class.java)
+            intent.putExtra(NodeDetailActivity.EXTRA_NODE_ID, node.nodeId)
+            intent.putExtra(NodeDetailActivity.EXTRA_NODE_NAME, node.label)
+            startActivity(intent)
+        }
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.itemAnimator = null  // отключаем анимацию RecyclerView — она конфликтует с ручным управлением позициями
         recyclerView.adapter = adapter

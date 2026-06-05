@@ -5,7 +5,8 @@ data class TreeNode(
     val label: String,
     val level: Int,           // 0=Клиент, 1=Адрес, 2=Объект, 3=Узел
     val children: MutableList<TreeNode> = mutableListOf(),
-    var isExpanded: Boolean = false
+    var isExpanded: Boolean = false,
+    val nodeId: Int = -1      // Лист1 №п/п, только для level=3
 ) {
     val levelName: String get() = when (level) {
         0 -> "Клиент"

@@ -8,7 +8,9 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 
-class TreeAdapter : RecyclerView.Adapter<TreeAdapter.NodeViewHolder>() {
+class TreeAdapter(
+    private val onNodeDoubleClick: (TreeNode) -> Unit = {}
+) : RecyclerView.Adapter<TreeAdapter.NodeViewHolder>() {
 
     private val visibleNodes: MutableList<TreeNode> = mutableListOf()
 
@@ -60,17 +62,36 @@ class TreeAdapter : RecyclerView.Adapter<TreeAdapter.NodeViewHolder>() {
             holder.arrowIcon.visibility = View.INVISIBLE
         }
 
-        // Click — use adapterPosition captured at click time, not at bind time
+        // Click — expand/collapse for nodes with children
         holder.itemView.setOnClickListener {
             val pos = holder.bindingAdapterPosition
             if (pos == RecyclerView.NO_ID.toInt()) return@setOnClickListener
             if (pos < 0 || pos >= visibleNodes.size) return@setOnClickListener
             val clickedNode = visibleNodes[pos]
             if (!clickedNode.hasChildren) return@setOnClickListener
-            if (clickedNode.isExpanded) {
-                collapseNode(pos)
-            } else {
-                expandNode(pos)
+            if (clickedNode.isExpanded) collapseNode(pos) else expandNode(pos)
+        }
+
+        // Double-click — open detail form for leaf nodes (level 3)
+        if (node.level == 3) {
+            holder.itemView.setOnLongClickListener {
+                val pos = holder.bindingAdapterPosition
+                if (pos < 0 || pos >= visibleNodes.size) return@setOnLongClickListener true
+                onNodeDoubleClick(visibleNodes[pos])
+                true
+            }
+
+            var lastClickTime = 0L
+            holder.itemView.setOnClickListener {
+                val pos = holder.bindingAdapterPosition
+                if (pos < 0 || pos >= visibleNodes.size) return@setOnClickListener
+                val now = System.currentTimeMillis()
+                if (now - lastClickTime < 400) {
+                    onNodeDoubleClick(visibleNodes[pos])
+                    lastClickTime = 0L
+                } else {
+                    lastClickTime = now
+                }
             }
         }
     }
