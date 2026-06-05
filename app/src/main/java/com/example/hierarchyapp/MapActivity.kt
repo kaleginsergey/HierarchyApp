@@ -193,14 +193,14 @@ function draw(){
 
     // number
     ctx.fillStyle='#fff';
-    ctx.font=`bold ${sel?13:11}px sans-serif`;
+    ctx.font='bold '+(sel?13:11)+'px sans-serif';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
     ctx.fillText(m.id, x, y);
 
     // label below
     ctx.fillStyle='#333';
-    ctx.font=`${sel?12:11}px sans-serif`;
+    ctx.font=(sel?12:11)+'px sans-serif';
     ctx.textAlign='center';
     ctx.textBaseline='top';
     const short = m.cls;
