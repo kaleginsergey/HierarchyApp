@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:#dce8f5;}
+#canvas{display:block;}
+#popup{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  background:#fff;border-radius:16px 16px 0 0;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.15);
+  padding:16px;z-index:100;font-family:sans-serif;
+}
+.popup-drag{width:40px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 12px;}
+.popup-title{font-size:14px;font-weight:700;color:#1565C0;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #eee;}
+.row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f5f5f5;}
+.row:last-child{border-bottom:none;}
+.lbl{font-size:12px;color:#888;}
+.val{font-size:12px;font-weight:600;color:#222;text-align:right;}
+#closeBtn{position:absolute;top:12px;right:14px;font-size:22px;color:#aaa;cursor:pointer;}
+#hint{
+  position:fixed;top:12px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.55);color:#fff;font-size:12px;font-family:sans-serif;
+  padding:6px 14px;border-radius:20px;pointer-events:none;white-space:nowrap;z-index:99;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="hint">Нажмите на маркер для деталей</div>
+<div id="popup">
+  <div class="popup-drag"></div>
+  <span id="closeBtn">x</span>
+  <div class="popup-title" id="pt"></div>
+  <div class="row"><span class="lbl">Nr uzla</span><span class="val" id="pi"></span></div>
+  <div class="row"><span class="lbl">Klass</span><span class="val" id="pc"></span></div>
+  <div class="row"><span class="lbl">Seriynyy Nr</span><span class="val" id="ps"></span></div>
+  <div class="row"><span class="lbl">Raspolozheniye</span><span class="val" id="pl"></span></div>
+  <div class="row"><span class="lbl">Limit potrebleniya</span><span class="val" id="plim"></span></div>
+</div>
+<script>
+var MARKERS = [];
+
+function init(markersJson) {
+  MARKERS = JSON.parse(markersJson);
+  resize();
+  initView();
+  draw();
+  setTimeout(function(){ var h=document.getElementById('hint'); if(h) h.style.display='none'; }, 3000);
+}
+
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var vpW, vpH;
+
+function resize() {
+  vpW = canvas.width  = window.innerWidth;
+  vpH = canvas.height = window.innerHeight;
+}
+
+var scale = 1;
+var offX = 0;
+var offY = 0;
+var R = 6378137;
+
+function mercY(lat) {
+  return Math.log(Math.tan(Math.PI/4 + lat*Math.PI/360)) * R;
+}
+
+function initView() {
+  if (!MARKERS.length) return;
+  var lats = MARKERS.map(function(m){return m.lat;});
+  var lngs = MARKERS.map(function(m){return m.lng;});
+  var minLat = Math.min.apply(null, lats);
+  var maxLat = Math.max.apply(null, lats);
+  var minLng = Math.min.apply(null, lngs);
+  var maxLng = Math.max.apply(null, lngs);
+  var pad = 60;
+  var dLng = maxLng - minLng || 0.01;
+  var mMinY = mercY(minLat), mMaxY = mercY(maxLat);
+  var dMerc = mMaxY - mMinY || 100;
+  var scaleX = (vpW - pad*2) / dLng;
+  var scaleY = (vpH - pad*2) / dMerc;
+  var rawScale = Math.min(scaleX, scaleY);
+  scale = rawScale * (180 / Math.PI / R);
+  var midLng = (minLng+maxLng)/2;
+  var midMerc = (mMinY+mMaxY)/2;
+  offX = vpW/2 - lngToXraw(midLng);
+  offY = vpH/2 - mercToYraw(midMerc);
+}
+
+function lngToXraw(lng) { return lng * (scale * R * Math.PI / 180); }
+function mercToYraw(my) { return -my * scale; }
+function lngToX(lng)    { return lngToXraw(lng) + offX; }
+function latToY(lat)    { return mercToYraw(mercY(lat)) + offY; }
+function xToLng(x)      { return (x - offX) / (scale * R * Math.PI / 180); }
+function yToLat(y)      { var my = -(y - offY)/scale; return Math.atan(Math.exp(my/R))*360/Math.PI - 90; }
+
+var selectedId = -1;
+var MARKER_R = 16;
+
+function draw() {
+  ctx.clearRect(0, 0, vpW, vpH);
+  ctx.fillStyle = '#dce8f5';
+  ctx.fillRect(0, 0, vpW, vpH);
+  drawGrid();
+  for (var i = 0; i < MARKERS.length; i++) {
+    var m = MARKERS[i];
+    var x = lngToX(m.lng);
+    var y = latToY(m.lat);
+    var sel = m.id === selectedId;
+    var r = sel ? MARKER_R + 4 : MARKER_R;
+
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = sel ? '#1565C0' : '#16A34A';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold ' + (sel ? 13 : 11) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(m.id), x, y);
+
+    ctx.fillStyle = '#333';
+    ctx.font = (sel ? 12 : 11) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(m.cls, x, y + r + 4);
+  }
+}
+
+function drawGrid() {
+  if (!MARKERS.length) return;
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1;
+  var lngs = MARKERS.map(function(m){return m.lng;});
+  var lats = MARKERS.map(function(m){return m.lat;});
+  var minLng = Math.min.apply(null,lngs)-0.015;
+  var maxLng = Math.max.apply(null,lngs)+0.015;
+  var minLat = Math.min.apply(null,lats)-0.015;
+  var maxLat = Math.max.apply(null,lats)+0.015;
+  var step = 0.003;
+  for (var lng = minLng; lng <= maxLng; lng += step) {
+    var x = lngToX(lng);
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, vpH); ctx.stroke();
+  }
+  for (var lat = minLat; lat <= maxLat; lat += step) {
+    var y = latToY(lat);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(vpW, y); ctx.stroke();
+  }
+}
+
+// touch
+var dragStart = null, dragOff = null, pinchDist = null;
+
+function touchDist(t) { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    dragStart = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+    dragOff = {x: offX, y: offY};
+    pinchDist = null;
+  } else if (e.touches.length === 2) {
+    dragStart = null;
+    pinchDist = touchDist(e.touches);
+  }
+}, {passive: false});
+
+canvas.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  if (e.touches.length === 1 && dragStart) {
+    offX = dragOff.x + (e.touches[0].clientX - dragStart.x);
+    offY = dragOff.y + (e.touches[0].clientY - dragStart.y);
+    draw();
+  } else if (e.touches.length === 2 && pinchDist !== null) {
+    var nd = touchDist(e.touches);
+    var cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    var cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    var lngC = xToLng(cx), latC = yToLat(cy);
+    scale *= nd / pinchDist;
+    offX = cx - lngToXraw(lngC);
+    offY = cy - mercToYraw(mercY(latC));
+    pinchDist = nd;
+    draw();
+  }
+}, {passive: false});
+
+canvas.addEventListener('touchend', function(e) {
+  if (e.changedTouches.length === 1 && dragStart) {
+    var dx = e.changedTouches[0].clientX - dragStart.x;
+    var dy = e.changedTouches[0].clientY - dragStart.y;
+    if (Math.hypot(dx, dy) < 12) {
+      var tx = e.changedTouches[0].clientX;
+      var ty = e.changedTouches[0].clientY;
+      var hit = null;
+      for (var i = 0; i < MARKERS.length; i++) {
+        var m = MARKERS[i];
+        var mx = lngToX(m.lng), my = latToY(m.lat);
+        if (Math.hypot(tx-mx, ty-my) < MARKER_R + 10) { hit = m; break; }
+      }
+      if (hit) { showPopup(hit); selectedId = hit.id; }
+      else { hidePopup(); selectedId = -1; }
+      draw();
+    }
+    dragStart = null;
+  }
+  pinchDist = null;
+});
+
+// mouse (emulator)
+var mouseDrag = null, mouseOff = null;
+canvas.addEventListener('mousedown', function(e) { mouseDrag={x:e.clientX,y:e.clientY}; mouseOff={x:offX,y:offY}; });
+canvas.addEventListener('mousemove', function(e) {
+  if (!mouseDrag) return;
+  offX = mouseOff.x+(e.clientX-mouseDrag.x);
+  offY = mouseOff.y+(e.clientY-mouseDrag.y);
+  draw();
+});
+canvas.addEventListener('mouseup', function(e) {
+  if (!mouseDrag) return;
+  var dx = e.clientX-mouseDrag.x, dy = e.clientY-mouseDrag.y;
+  if (Math.hypot(dx,dy) < 6) {
+    var hit = null;
+    for (var i=0; i<MARKERS.length; i++) {
+      var m=MARKERS[i], mx=lngToX(m.lng), my=latToY(m.lat);
+      if (Math.hypot(e.clientX-mx,e.clientY-my)<MARKER_R+10){hit=m;break;}
+    }
+    if (hit){showPopup(hit);selectedId=hit.id;}
+    else{hidePopup();selectedId=-1;}
+    draw();
+  }
+  mouseDrag=null;
+});
+canvas.addEventListener('wheel', function(e) {
+  var factor = e.deltaY < 0 ? 1.15 : 0.87;
+  var lngC = xToLng(e.clientX), latC = yToLat(e.clientY);
+  scale *= factor;
+  offX = e.clientX - lngToXraw(lngC);
+  offY = e.clientY - mercToYraw(mercY(latC));
+  draw();
+}, {passive: true});
+
+function showPopup(m) {
+  document.getElementById('pt').textContent = 'Nr' + m.id + ' - ' + m.label;
+  document.getElementById('pi').textContent = m.id;
+  document.getElementById('pc').textContent = m.cls;
+  document.getElementById('ps').textContent = m.serial;
+  document.getElementById('pl').textContent = m.location;
+  document.getElementById('plim').textContent = m.limit + ' l';
+  document.getElementById('popup').style.display = 'block';
+  document.getElementById('hint').style.display = 'none';
+}
+function hidePopup() {
+  document.getElementById('popup').style.display = 'none';
+}
+document.getElementById('closeBtn').addEventListener('click', function() {
+  hidePopup(); selectedId = -1; draw();
+});
+
+window.addEventListener('resize', function() { resize(); draw(); });
+</script>
+</body>
+</html>
