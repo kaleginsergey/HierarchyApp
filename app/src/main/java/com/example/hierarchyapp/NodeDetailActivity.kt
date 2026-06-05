@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.TextView
 import android.widget.Button
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class NodeDetailActivity : AppCompatActivity() {
@@ -16,7 +17,6 @@ class NodeDetailActivity : AppCompatActivity() {
         val nodeId   = intent.getIntExtra(EXTRA_NODE_ID, -1)
         val nodeName = intent.getStringExtra(EXTRA_NODE_NAME) ?: ""
 
-        // Back button
         findViewById<TextView>(R.id.btnBack).setOnClickListener { finish() }
 
         val tvNodeName = findViewById<TextView>(R.id.tvNodeName)
@@ -39,21 +39,27 @@ class NodeDetailActivity : AppCompatActivity() {
             tvLimit.text    = "${detail.consumptionLimit} л"
             tvGeo.text      = detail.geoData
 
-            // Open in maps on click
             btnMap.setOnClickListener {
-                val geo = detail.geoData.replace(" ", "")
-                val uri = Uri.parse("geo:$geo?q=$geo")
-                val mapIntent = Intent(Intent.ACTION_VIEW, uri)
-                if (mapIntent.resolveActivity(packageManager) != null) {
-                    startActivity(mapIntent)
+                val parts = detail.geoData.split(",").map { it.trim() }
+                val lat = parts.getOrNull(0) ?: return@setOnClickListener
+                val lng = parts.getOrNull(1) ?: return@setOnClickListener
+                val label = Uri.encode(nodeName)
+                // geo: URI — opens any maps app; falls back to Google Maps web
+                try {
+                    val geoUri = Uri.parse("geo:$lat,$lng?q=$lat,$lng($label)")
+                    startActivity(Intent(Intent.ACTION_VIEW, geoUri))
+                } catch (e: Exception) {
+                    // Fallback: open Google Maps in browser
+                    val webUri = Uri.parse("https://maps.google.com/?q=$lat,$lng")
+                    startActivity(Intent(Intent.ACTION_VIEW, webUri))
                 }
             }
         } else {
-            tvClass.text    = "—"
-            tvSerial.text   = "—"
-            tvLocation.text = "—"
-            tvLimit.text    = "—"
-            tvGeo.text      = "—"
+            tvClass.text     = "—"
+            tvSerial.text    = "—"
+            tvLocation.text  = "—"
+            tvLimit.text     = "—"
+            tvGeo.text       = "—"
             btnMap.isEnabled = false
         }
     }
